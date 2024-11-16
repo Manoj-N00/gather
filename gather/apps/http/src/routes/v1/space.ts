@@ -1,6 +1,6 @@
-import e, { Router } from "express";
+import e, { Router } from "express";   
 import client from "@repo/db/client";
-import { createSpaceSchema } from "../../types";
+import { addElementSchema, createElementSchema, createSpaceSchema } from "../../types";
 import { userMiddleware } from "../../middleware/user";
 
 export const spaceRouter=Router();
@@ -67,8 +67,7 @@ spaceRouter.post("/", userMiddleware, async (req, res) => {
     })
     console.log("space crated")
     res.json({spaceId: space.id})
-})
-
+})         
 spaceRouter.delete("/:spaceId",async(req,res)=>{
     const space = await client.space.findUnique({
         where: {
@@ -110,10 +109,37 @@ spaceRouter.get("/all",userMiddleware,async(req,res)=>{
             }
         })
     })
+
     
 })
-spaceRouter.post("/element",(req,res)=>{
-    
+spaceRouter.post("/element",userMiddleware,async(req,res)=>{
+    const parsedData = addElementSchema.safeParse(req.body)
+    if(!parsedData.success){
+        res.status(400).json({message:"Validation failed"})
+        return
+    }
+    const space = await client.space.findUnique({
+        where:{
+            id:req.body.spaceId,
+            creatorId:req.userId!
+        },select:{
+            width:true,
+            height:true,
+        }
+    })
+    if(!space){
+        res.status(400).json({message:"Space not found"})
+        return
+    }
+    await client.spaceElements.create({
+        data:{
+        spaceId:req.body.spaceId,
+        elementId:parsedData.data.elementId,
+        x:parsedData.data.x,
+        y:parsedData.data.y
+        }
+    })
+    res.json({message:"Element added"})
 })
 spaceRouter.delete("/element",(req,res)=>{
     
