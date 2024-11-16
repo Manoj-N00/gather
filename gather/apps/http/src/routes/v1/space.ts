@@ -1,6 +1,6 @@
 import e, { Router } from "express";   
 import client from "@repo/db/client";
-import { addElementSchema, createElementSchema, createSpaceSchema } from "../../types";
+import { addElementSchema, createElementSchema, createSpaceSchema, deleteElementSchema } from "../../types";
 import { userMiddleware } from "../../middleware/user";
 
 export const spaceRouter=Router();
@@ -141,9 +141,58 @@ spaceRouter.post("/element",userMiddleware,async(req,res)=>{
     })
     res.json({message:"Element added"})
 })
-spaceRouter.delete("/element",(req,res)=>{
+spaceRouter.delete("/element",userMiddleware,async(req,res)=>{
+    const parsedData = deleteElementSchema.safeParse(req.body)
+    if(!parsedData.success){
+        res.status(400).json({message:"Validation failed"})
+        return
+    }
     
+   const spaceElement = await client.spaceElements.findFirst({
+        where:{
+           id:parsedData.data.id,
+        },
+        include:{
+            space:true
+        }
+    })
+    if(!spaceElement?.space.creatorId||spaceElement.space.creatorId!==req.userId){
+        res.status(403).json({message:"Unauthorized"})
+        return
+    }
+    await client.spaceElements.delete({
+        where:{
+            id:parsedData.data.id
+        }
+    }
+        
+    )
+    res.json({message:"Element deleted"})
+
 })
-spaceRouter.get("/:spaceId",(req,res)=>{
-    
+spaceRouter.get("/:spaceId",userMiddleware,async(req,res)=>{
+    const space =await client.space.findUnique({
+        where:{
+            id:req.params.spaceId
+        },
+        include:{
+            elements:true
+
+        }
+    })
+    if(!space){
+        res.json({message:"Space not found"})
+        return
+    }
+    res.json({
+        "dimensions":`${space.width}x${space.height}`,
+        "elements":space.elements.map(x=>({
+            
+                id:x.id,
+                x:x.x,
+                y:x.y,
+                elementId:x.elementId
+            
+        })),
+    })
 })

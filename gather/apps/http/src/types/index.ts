@@ -68,3 +68,8 @@ declare global {
       })
     ),
   });
+
+  export const deleteElementSchema = z.object({
+    id: z.string(),
+    
+  });
