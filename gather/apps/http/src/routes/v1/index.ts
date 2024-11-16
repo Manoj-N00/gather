@@ -1,14 +1,12 @@
 import { Router } from "express";
 import { userRouter } from "./user";
-import { adminRouter } from "./admin";
 import { spaceRouter } from "./space";
-import { SigninSchema, SignupSchema } from "../../middleware/admin";
-import client from "@repo/db/client";
+import { adminRouter } from "./admin";
+import { SigninSchema, SignupSchema } from "../../types";
 import {hash, compare} from "../../scrypt";
+import client from "@repo/db/client";
 import jwt from "jsonwebtoken";
-import {JWT_PASSWORD} from "../../config";
-
-
+import { JWT_PASSWORD } from "../../config";
 
 export const router = Router();
 
@@ -80,17 +78,27 @@ router.post("/signin", async (req, res) => {
     }
 })
 
- router.get("/elements",(req,res)=>{
-    res.json({
-        message:"elements"
-    })
- })
- router.get("/avatars",(req,res)=>{
-    res.json({
-        message:"avatas"
-    })
- })
+router.get("/elements", async (req, res) => {
+    const elements = await client.element.findMany()
 
- router.use("/user",userRouter);
- router.use("/space",spaceRouter);
- router.use("/admin",adminRouter);
+    res.json({elements: elements.map(e => ({
+        id: e.id,
+        imageUrl: e.imageUrl,
+        width: e.width,
+        height: e.height,
+        static: e.static
+    }))})
+})
+
+router.get("/avatars", async (req, res) => {
+    const avatars = await client.avatar.findMany()
+    res.json({avatars: avatars.map(x => ({
+        id: x.id,
+        imageUrl: x.imageUrl,
+        name: x.name
+    }))})
+})
+
+router.use("/user", userRouter)
+router.use("/space", spaceRouter)
+router.use("/admin", adminRouter)

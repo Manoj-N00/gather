@@ -1,13 +1,12 @@
-import e, { Router } from "express";   
+import { Router } from "express";
 import client from "@repo/db/client";
-import { addElementSchema, createElementSchema, createSpaceSchema, deleteElementSchema } from "../../types";
 import { userMiddleware } from "../../middleware/user";
-
-export const spaceRouter=Router();
+import { AddElementSchema, CreateElementSchema, CreateSpaceSchema, DeleteElementSchema } from "../../types";
+export const spaceRouter = Router();
 
 spaceRouter.post("/", userMiddleware, async (req, res) => {
     console.log("endopibnt")
-    const parsedData = createSpaceSchema.safeParse(req.body)
+    const parsedData = CreateSpaceSchema.safeParse(req.body)
     if (!parsedData.success) {
         console.log(JSON.stringify(parsedData))
         res.status(400).json({message: "Validation failed"})
@@ -67,142 +66,154 @@ spaceRouter.post("/", userMiddleware, async (req, res) => {
     })
     console.log("space crated")
     res.json({spaceId: space.id})
-})         
-spaceRouter.delete("/:spaceId",async(req,res)=>{
-    const space = await client.space.findUnique({
-        where: {
-            id: req.params.spaceId
-        },select:{
-            creatorId:true
-        }
-    })
-    if(!space){
-        res.status(400).json({message:"Space not found"})
-        return
-    }
-    if(space.creatorId !== req.userId){
-        res.status(403).json({message:"Unauthorized"})
-        return
-    }
-    await client.space.delete({
-        where:{
-            id:req.params.spaceId
-        }
-        
-    })
-    res.json({message:"Space deleted"})
 })
-spaceRouter.get("/all",userMiddleware,async(req,res)=>{
-    const spaces = await client.space.findMany({
-        where:{
-            creatorId:req.userId
-        }
-    })
-    res.json({
-        spaces:spaces.map(x=>{
-            return {
-                id:x.id,
-                name:x.name,
-                width:x.width,
-                height:x.height,
-                thumbnail:x.thumbnail
-            }
-        })
-    })
 
-    
-})
-spaceRouter.post("/element",userMiddleware,async(req,res)=>{
-    const parsedData = addElementSchema.safeParse(req.body)
-    if(!parsedData.success){
-        res.status(400).json({message:"Validation failed"})
+
+spaceRouter.delete("/element", userMiddleware, async (req, res) => {
+    console.log("spaceElement?.space1 ")
+    const parsedData = DeleteElementSchema.safeParse(req.body)
+    if (!parsedData.success) {
+        res.status(400).json({message: "Validation failed"})
         return
     }
-    const space = await client.space.findUnique({
-        where:{
-            id:req.body.spaceId,
-            creatorId:req.userId!
-        },select:{
-            width:true,
-            height:true,
+    const spaceElement = await client.spaceElements.findFirst({
+        where: {
+            id: parsedData.data.id
+        }, 
+        include: {
+            space: true
         }
     })
-    if(!space){
-        res.status(400).json({message:"Space not found"})
-        return
-    }
-    await client.spaceElements.create({
-        data:{
-        spaceId:req.body.spaceId,
-        elementId:parsedData.data.elementId,
-        x:parsedData.data.x,
-        y:parsedData.data.y
-        }
-    })
-    res.json({message:"Element added"})
-})
-spaceRouter.delete("/element",userMiddleware,async(req,res)=>{
-    const parsedData = deleteElementSchema.safeParse(req.body)
-    if(!parsedData.success){
-        res.status(400).json({message:"Validation failed"})
-        return
-    }
-    
-   const spaceElement = await client.spaceElements.findFirst({
-        where:{
-           id:parsedData.data.id,
-        },
-        include:{
-            space:true
-        }
-    })
-    if(!spaceElement?.space.creatorId||spaceElement.space.creatorId!==req.userId){
-        res.status(403).json({message:"Unauthorized"})
+    console.log(spaceElement?.space)
+    console.log("spaceElement?.space")
+    if (!spaceElement?.space.creatorId || spaceElement.space.creatorId !== req.userId) {
+        res.status(403).json({message: "Unauthorized"})
         return
     }
     await client.spaceElements.delete({
-        where:{
-            id:parsedData.data.id
-        }
-    }
-        
-    )
-    res.json({message:"Element deleted"})
-
-})
-spaceRouter.get("/:spaceId",userMiddleware,async(req,res)=>{
-    const space =await client.space.findUnique({
-        where:{
-            id:req.params.spaceId
-        },
-        include:{
-            elements:{
-                include:{
-                    element:true
-                }
-            }
-
+        where: {
+            id: parsedData.data.id
         }
     })
-    if(!space){
-        res.json({message:"Space not found"})
+    res.json({message: "Element deleted"})
+})
+
+spaceRouter.delete("/:spaceId", userMiddleware, async(req, res) => {
+    console.log("req.params.spaceId", req.params.spaceId)
+    const space = await client.space.findUnique({
+        where: {
+            id: req.params.spaceId
+        }, select: {
+            creatorId: true
+        }
+    })
+    if (!space) {
+        res.status(400).json({message: "Space not found"})
         return
     }
+
+    if (space.creatorId !== req.userId) {
+        console.log("code should reach here")
+        res.status(403).json({message: "Unauthorized"})
+        return
+    }
+
+    await client.space.delete({
+        where: {
+            id: req.params.spaceId
+        }
+    })
+    res.json({message: "Space deleted"})
+})
+
+spaceRouter.get("/all", userMiddleware, async (req, res) => {
+    const spaces = await client.space.findMany({
+        where: {
+            creatorId: req.userId!
+        }
+    });
+
     res.json({
-        "dimensions":`${space.width}x${space.height}`,
-        "elements":space.elements.map(x=>({
-            
-                id:x.id,
-                x:x.x,
-                y:x.y,
-                element:{
-                    id:x.element.id,
-                    imageUrl:x.element.imageUrl,
-                    width:x.element.width,  
-                    height:x.element.height
-                    static:x.element.static
+        spaces: spaces.map(s => ({
+            id: s.id,
+            name: s.name,
+            thumbnail: s.thumbnail,
+            dimensions: `${s.width}x${s.height}`,
+        }))
+    })
+
+    
+})
+
+spaceRouter.post("/element", userMiddleware, async (req, res) => {
+    const parsedData = AddElementSchema.safeParse(req.body)
+    if (!parsedData.success) {
+        res.status(400).json({message: "Validation failed"})
+        return
+    }
+    const space = await client.space.findUnique({
+        where: {
+            id: req.body.spaceId,
+            creatorId: req.userId!
+        }, select: {
+            width: true,
+            height: true
+        }
+    })
+
+    if(req.body.x < 0 || req.body.y < 0 || req.body.x > space?.width! || req.body.y > space?.height!) {
+        res.status(400).json({message: "Point is outside of the boundary"})
+        return
+    }
+
+    if (!space) {
+        res.status(400).json({message: "Space not found"})
+        return
+    }
+    await client.spaceElements.create({
+        data: {
+            spaceId: req.body.spaceId,
+            elementId: req.body.elementId,
+            x: req.body.x,
+            y: req.body.y
+        }
+    })
+
+    res.json({message: "Element added"})
+})
+
+spaceRouter.get("/:spaceId",async (req, res) => {
+    const space = await client.space.findUnique({
+        where: {
+            id: req.params.spaceId
+        },
+        include: {
+            elements: {
+                include: {
+                    element: true
                 }
-            
+            },
+        }
+    })
+
+    if (!space) {
+        res.status(400).json({message: "Space not found"})
+        return
+    }
+
+    res.json({
+        "dimensions": `${space.width}x${space.height}`,
+        elements: space.elements.map(e => ({
+            id: e.id,
+            element: {
+                id: e.element.id,
+                imageUrl: e.element.imageUrl,
+                width: e.element.width,
+                height: e.element.height,
+                static: e.element.static
+            },
+            x: e.x,
+            y: e.y
         })),
     })
 })
