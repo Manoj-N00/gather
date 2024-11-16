@@ -176,7 +176,11 @@ spaceRouter.get("/:spaceId",userMiddleware,async(req,res)=>{
             id:req.params.spaceId
         },
         include:{
-            elements:true
+            elements:{
+                include:{
+                    element:true
+                }
+            }
 
         }
     })
@@ -191,7 +195,13 @@ spaceRouter.get("/:spaceId",userMiddleware,async(req,res)=>{
                 id:x.id,
                 x:x.x,
                 y:x.y,
-                elementId:x.elementId
+                element:{
+                    id:x.element.id,
+                    imageUrl:x.element.imageUrl,
+                    width:x.element.width,  
+                    height:x.element.height
+                    static:x.element.static
+                }
             
         })),
     })
